@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Student Tardiness Tracker</title>
+<!-- Bootstrap CSS CDN -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+<style>
+  body {
+    background: #f8f9fa;
+  }
+  .login-container,
+  .app-container {
+    max-width: 900px;
+    margin: 2rem auto;
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 15px rgb(0 0 0 / 0.1);
+  }
+  .dashboard-list {
+    max-height: 150px;
+    overflow-y: auto;
+  }
+  /* Autocomplete dropdown custom style */
+  #studentNameList {
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ced4da;
+    border-top: none;
+    background: white;
+  }
+  #studentNameList div {
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+  }
+  #studentNameList div:hover {
+    background-color: #e9ecef;
+  }
+  .text-danger-bold {
+    color: #dc3545 !important;
+    font-weight: 700;
+  }
+  @media(max-width: 576px) {
+    .dashboard-list {
+      max-height: 100px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="loginSection" class="login-container">
+  <h2 class="mb-4 text-center">Login</h2>
+  <form id="loginForm" novalidate>
+    <div class="mb-3">
+      <label for="username" class="form-label">Username</label>
+      <input type="text" class="form-control" id="username" required autocomplete="off" />
+      <div class="invalid-feedback">
+        Please enter your username.
+      </div>
+    </div>
+    <div class="mb-4">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" class="form-control" id="password" required autocomplete="off" />
+      <div class="invalid-feedback">
+        Please enter your password.
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Log In</button>
+  </form>
+</div>
+
+<div id="appSection" class="app-container d-none">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2>Student Tardiness Tracker</h2>
+    <div class="d-flex gap-2 flex-wrap">
+      <button id="clearDataBtn" class="btn btn-outline-danger" title="Clear all tardiness data">Clear All Data</button>
+      <button id="logoutBtn" class="btn btn-outline-danger">Logout</button>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="row mb-4">
+    <div class="col-md-12 mb-3">
+      <div class="p-3 bg-white rounded shadow-sm">
+        <h5>Top Students with More than 3 Tardiness</h5>
+        <div id="topLateStudents" class="dashboard-list">
+          <p class="text-muted mb-0">No data available.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mode Toggle -->
+  <div class="mb-3 d-flex justify-content-end gap-2 flex-wrap">
+    <button id="singleModeBtn" class="btn btn-primary">Single Entry Mode</button>
+    <button id="pasteModeBtn" class="btn btn-outline-secondary">Paste Bulk Entry Mode</button>
+  </div>
+
+  <!-- Single Entry Form -->
+  <form id="tardinessForm" class="mb-4 needs-validation" novalidate autocomplete="off">
+    <div class="row g-3">
+      <div class="col-md-4 position-relative">
+        <label for="studentName" class="form-label">Student Name</label>
+        <input type="text" class="form-control" id="studentName" placeholder="Start typing name..." required />
+        <div id="studentNameList" class="d-none"></div>
+        <div class="invalid-feedback">Please select or enter a student name.</div>
+      </div>
+      <div class="col-md-3">
+        <label for="className" class="form-label">Class</label>
+        <input type="text" class="form-control" id="className" placeholder="e.g. Grade 10A" required />
+        <div class="invalid-feedback">Please enter class name.</div>
+      </div>
+      <div class="col-md-2 d-flex align-items-center">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="confirmedCheck" />
+          <label class="form-check-label" for="confirmedCheck">Confirmed Tardiness</label>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <label for="tardinessDate" class="form-label">Date</label>
+        <input type="date" class="form-control" id="tardinessDate" required />
+        <div class="invalid-feedback">Date is required.</div>
+      </div>
+    </div>
+    <div class="row mt-3">
+      <div class="col-md-12 d-flex align-items-end gap-2">
+        <button type="submit" class="btn btn-success">Add Tardiness Record</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Paste Bulk Entry Form -->
+  <form id="pasteBulkForm" class="mb-4 d-none needs-validation" novalidate autocomplete="off">
+    <div class="mb-3">
+      <label for="pasteBulkTextarea" class="form-label">Paste bulk tardiness data below (each line: <code>Student Name, Class, Confirm Status</code>)</label>
+      <textarea id="pasteBulkTextarea" class="form-control" rows="8" placeholder="Example:
+Ogen, 10A, Not confirm
+Gandhi, 11, Not confirm
+Farel, 12, Not confirm
+Adamu, 10A, Confirm
+" required></textarea>
+      <div class="invalid-feedback">Please paste valid data in the correct format.</div>
+    </div>
+    <div class="mb-3">
+      <label for="pasteBulkDate" class="form-label">Date for all entries</label>
+      <input type="date" id="pasteBulkDate" class="form-control" required />
+      <div class="invalid-feedback">Please select a date for all entries.</div>
+    </div>
+    <button type="submit" class="btn btn-success w-100">Add All Records</button>
+  </form>
+
+  <!-- Filters -->
+  <div class="row mb-3">
+    <div class="col-md-4 mb-2">
+      <input type="text" id="filterName" class="form-control" placeholder="Filter by student name" />
+    </div>
+    <div class="col-md-3 mb-2">
+      <input type="text" id="filterClass" class="form-control" placeholder="Filter by class" />
+    </div>
+    <div class="col-md-3 mb-2">
+      <input type="date" id="filterDate" class="form-control" placeholder="Filter by date" />
+    </div>
+    <div class="col-md-2 mb-2">
+      <button id="clearFilters" class="btn btn-outline-secondary w-100" title="Clear filters">Clear</button>
+    </div>
+  </div>
+
+  <!-- Tardiness Table -->
+  <div class="table-responsive shadow-sm rounded bg-white">
+    <table class="table table-striped table-hover mb-0" id="tardinessTable">
+      <thead class="table-primary">
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Student Name</th>
+          <th scope="col">Class</th>
+          <th scope="col">Confirmed</th>
+          <th scope="col">Date</th>
+          <th scope="col" style="min-width:110px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Filled dynamically -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Bootstrap Bundle JS including Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+(() => {
+  const loginSection = document.getElementById('loginSection');
+  const appSection = document.getElementById('appSection');
+  const loginForm = document.getElementById('loginForm');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const clearDataBtn = document.getElementById('clearDataBtn');
+
+  const tardinessForm = document.getElementById('tardinessForm');
+  const pasteBulkForm = document.getElementById('pasteBulkForm');
+
+  const singleModeBtn = document.getElementById('singleModeBtn');
+  const pasteModeBtn = document.getElementById('pasteModeBtn');
+
+  const studentNameInput = document.getElementById('studentName');
+  const studentNameList = document.getElementById('studentNameList');
+  const classNameInput = document.getElementById('className');
+  const confirmedCheck = document.getElementById('confirmedCheck');
+  const tardinessDateInput = document.getElementById('tardinessDate');
+
+  const pasteBulkTextarea = document.getElementById('pasteBulkTextarea');
+  const pasteBulkDateInput = document.getElementById('pasteBulkDate');
+
+  const filterNameInput = document.getElementById('filterName');
+  const filterClassInput = document.getElementById('filterClass');
+  const filterDateInput = document.getElementById('filterDate');
+  const clearFiltersBtn = document.getElementById('clearFilters');
+
+  const tardinessTableBody = document.querySelector('#tardinessTable tbody');
+  const topLateStudentsElem = document.getElementById('topLateStudents');
+
+  let tardinessData = [];
+  let studentNames = new Set();
+
+  const validUsers = [
+    { username: 'Division1', password: '12345678' },
+    { username: 'teacher', password: 'teacher123' }
+  ];
+
+  let currentMode = 'single';
+
+  function saveLoggedInUser(username) {
+    localStorage.setItem('loggedInUser', username);
+  }
+  function getLoggedInUser() {
+    return localStorage.getItem('loggedInUser');
+  }
+  function logout() {
+    localStorage.removeItem('loggedInUser');
+    location.reload();
+  }
+  function loadTardinessData() {
+    const dataRaw = localStorage.getItem('tardinessData');
+    if (dataRaw) {
+      tardinessData = JSON.parse(dataRaw);
+      studentNames = new Set(tardinessData.map(d => d.studentName));
+    } else {
+      tardinessData = [];
+      studentNames = new Set();
+    }
+  }
+  function saveTardinessData() {
+    localStorage.setItem('tardinessData', JSON.stringify(tardinessData));
+  }
+  function populateStudentNameList(filter) {
+    if (!filter) {
+      studentNameList.innerHTML = '';
+      studentNameList.classList.add('d-none');
+      return;
+    }
+    const filterLower = filter.toLowerCase();
+    const matches = Array.from(studentNames).filter(name => name.toLowerCase().startsWith(filterLower));
+    if (matches.length === 0) {
+      studentNameList.innerHTML = '';
+      studentNameList.classList.add('d-none');
+      return;
+    }
+    studentNameList.innerHTML = matches.map(name => `<div tabindex="0">${name}</div>`).join('');
+    studentNameList.classList.remove('d-none');
+  }
+  function getFilteredData() {
+    const filterName = filterNameInput.value.trim().toLowerCase();
+    const filterClass = filterClassInput.value.trim().toLowerCase();
+    const filterDate = filterDateInput.value;
+    return tardinessData.filter(record => {
+      let matches = true;
+      if (filterName && !record.studentName.toLowerCase().includes(filterName)) matches = false;
+      if (filterClass && !record.className.toLowerCase().includes(filterClass)) matches = false;
+      if (filterDate && record.date !== filterDate) matches = false;
+      return matches;
+    });
+  }
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+function renderTable() {
+    const data = getFilteredData(); // Ambil semua data tanpa filter konfirmasi
+    if (data.length === 0) {
+        tardinessTableBody.innerHTML = `<tr><td colspan="6" class="text-center fst-italic text-muted">No records found.</td></tr>`;
+        return;
+    }
+    data.sort((a, b) => {
+        const nameCmp = a.studentName.localeCompare(b.studentName);
+        if (nameCmp !== 0) return nameCmp;
+        return new Date(b.date) - new Date(a.date); // Sort by date descending
+    });
+    
+    tardinessTableBody.innerHTML = data.map((rec, i) => {
+        const originalIndex = tardinessData.findIndex(d => d.studentName === rec.studentName && d.date === rec.date);
+        return `
+        <tr data-index="${originalIndex}">
+            <th scope="row">${i + 1}</th>
+            <td>${rec.studentName}</td>
+            <td>${rec.className}</td>
+            <td>${rec.confirmed ? 'Yes' : 'No'}</td>
+            <td>${formatDate(rec.date)}</td>
+            <td>
+                <button class="btn btn-sm btn-danger delete-btn" title="Delete this record">Delete</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    // Event listener for delete buttons
+    const deleteButtons = tardinessTableBody.querySelectorAll('.delete-btn');
+    deleteButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const tr = e.target.closest('tr');
+            const idx = parseInt(tr.getAttribute('data-index'), 10);
+            if (isNaN(idx)) return;
+            if (confirm(`Are you sure you want to delete the record of "${tardinessData[idx].studentName}" dated ${formatDate(tardinessData[idx].date)}?`)) {
+                tardinessData.splice(idx, 1);
+                studentNames = new Set(tardinessData.map(d => d.studentName));
+                saveTardinessData();
+                renderTable();
+                renderDashboard();
+            }
+        });
+    });
+}
+
+function renderDashboard() {
+    if (tardinessData.length === 0) {
+        topLateStudentsElem.innerHTML = '<p class="text-muted mb-0">No data available.</p>';
+        return;
+    }
+    
+    const countMap = {};
+    for (const rec of tardinessData) {
+        // Hitung hanya yang tidak dikonfirmasi
+        if (!rec.confirmed) {
+            countMap[rec.studentName] = (countMap[rec.studentName] || 0) + 1;
+        }
+    }
+    
+    // Filter students with tardiness greater than 3
+    const filteredStudents = Object.entries(countMap).filter(([name, count]) => count >= 3);
+    
+    // Sort the filtered students by count
+    const sortedStudents = filteredStudents.sort((a, b) => b[1] - a[1]);
+    
+    const topList = sortedStudents.map(([name, count]) => {
+        return `<div class="d-flex justify-content-between border-bottom py-1">
+            <span class="text-danger-bold">${name}</span> <span class="badge bg-primary rounded-pill">${count}</span>
+        </div>`;
+    }).join('');
+    
+    topLateStudentsElem.innerHTML = topList.length > 0 ? topList : '<p class="text-muted mb-0">No students with more than 3 tardiness.</p>';
+}
+
+  function setDefaultDates() {
+    const todayStr = (new Date()).toISOString().slice(0, 10);
+    tardinessDateInput.value = todayStr;
+    pasteBulkDateInput.value = todayStr;
+  }
+  function handleTardinessFormSubmit(e) {
+    e.preventDefault();
+    if (!tardinessForm.checkValidity()) {
+      e.stopPropagation();
+      tardinessForm.classList.add('was-validated');
+      return;
+    }
+    const newRecord = {
+      studentName: studentNameInput.value.trim(),
+      className: classNameInput.value.trim(),
+      confirmed: confirmedCheck.checked,
+      date: tardinessDateInput.value
+    };
+    tardinessData.push(newRecord);
+    studentNames.add(newRecord.studentName);
+    saveTardinessData();
+    tardinessForm.reset();
+    setDefaultDates();
+    studentNameList.classList.add('d-none');
+    tardinessForm.classList.remove('was-validated');
+    renderTable();
+    renderDashboard();
+  }
+  function handlePasteBulkFormSubmit(e) {
+    e.preventDefault();
+    if (!pasteBulkForm.checkValidity()) {
+      e.stopPropagation();
+      pasteBulkForm.classList.add('was-validated');
+      return;
+    }
+    const text = pasteBulkTextarea.value.trim();
+    const dateForAll = pasteBulkDateInput.value;
+    if (!text) {
+      alert('Paste some data first.');
+      return;
+    }
+    if (!dateForAll) {
+      alert('Please select a date for entries.');
+      return;
+    }
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const newRecords = [];
+    for (let i = 0; i < lines.length; i++) {
+      const parts = lines[i].split(',').map(p => p.trim());
+      if (parts.length < 3) {
+        alert(`Invalid format on line ${i + 1}. Each line must have 3 comma-separated values: Student Name, Class, Confirm Status`);
+        return;
+      }
+      const [studentName, className, confirmStatusRaw] = parts;
+      if (!studentName) {
+        alert(`Student Name empty on line ${i + 1}`);
+        return;
+      }
+      if (!className) {
+        alert(`Class empty on line ${i + 1}`);
+        return;
+      }
+      const confLow = confirmStatusRaw.toLowerCase();
+      let confirmed = false;
+      if (confLow === 'confirm' || confLow === 'confirmed' || confLow === 'yes' || confLow === 'true') confirmed = true;
+      else if (confLow === 'not confirm' || confLow === 'not confirmed' || confLow === 'no' || confLow === 'false') confirmed = false;
+      else {
+        alert(`Invalid confirm status on line ${i + 1}: "${confirmStatusRaw}". Use "Confirm" or "Not confirm".`);
+        return;
+      }
+      newRecords.push({
+        studentName,
+        className,
+        confirmed,
+        date: dateForAll
+      });
+    }
+    for (const rec of newRecords) {
+      tardinessData.push(rec);
+      studentNames.add(rec.studentName);
+    }
+    saveTardinessData();
+    pasteBulkTextarea.value = '';
+    pasteBulkDateInput.value = dateForAll;
+    pasteBulkForm.classList.remove('was-validated');
+    alert(`${newRecords.length} record(s) added successfully!`);
+    renderTable();
+    renderDashboard();
+  }
+  function clearAllData() {
+    if (confirm('Are you sure you want to clear ALL tardiness data? This action cannot be undone.')) {
+      tardinessData = [];
+      studentNames = new Set();
+      saveTardinessData();
+      filterNameInput.value = '';
+      filterClassInput.value = '';
+      filterDateInput.value = '';
+      renderTable();
+      renderDashboard();
+      tardinessForm.reset();
+      pasteBulkForm.reset();
+      setDefaultDates();
+      alert('All tardiness data has been cleared.');
+    }
+  }
+  function switchMode(mode) {
+    currentMode = mode;
+    if (mode === 'single') {
+      tardinessForm.classList.remove('d-none');
+      pasteBulkForm.classList.add('d-none');
+      singleModeBtn.classList.add('btn-primary');
+      singleModeBtn.classList.remove('btn-outline-secondary');
+      pasteModeBtn.classList.add('btn-outline-secondary');
+      pasteModeBtn.classList.remove('btn-primary');
+      setDefaultDates();
+    } else if (mode === 'pasteBulk') {
+      tardinessForm.classList.add('d-none');
+      pasteBulkForm.classList.remove('d-none');
+      pasteBulkTextarea.value = '';
+      pasteBulkDateInput.value = (new Date()).toISOString().slice(0, 10);
+      pasteBulkForm.classList.remove('was-validated');
+      pasteModeBtn.classList.add('btn-primary');
+      pasteModeBtn.classList.remove('btn-outline-secondary');
+      singleModeBtn.classList.add('btn-outline-secondary');
+      singleModeBtn.classList.remove('btn-primary');
+    }
+  }
+  loginForm.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!loginForm.checkValidity()) {
+      e.stopPropagation();
+      loginForm.classList.add('was-validated');
+      return;
+    }
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const validUser = validUsers.find(u => u.username === username && u.password === password);
+    if (validUser) {
+      saveLoggedInUser(username);
+      showApp();
+    } else {
+      alert('Invalid username or password');
+    }
+  });
+  logoutBtn.addEventListener('click', () => {
+    logout();
+  });
+  clearDataBtn.addEventListener('click', () => {
+    clearAllData();
+  });
+  studentNameInput.addEventListener('input', e => {
+    const val = e.target.value.trim();
+    populateStudentNameList(val);
+  });
+  studentNameList.addEventListener('click', e => {
+    if (e.target && e.target.tagName === 'DIV') {
+      studentNameInput.value = e.target.textContent;
+      studentNameList.classList.add('d-none');
+      studentNameInput.focus();
+    }
+  });
+  studentNameInput.addEventListener('keydown', e => {
+    const listItems = studentNameList.querySelectorAll('div');
+    if (studentNameList.classList.contains('d-none') || listItems.length === 0) return;
+    let index = Array.from(listItems).findIndex(item => item === document.activeElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (index + 1 < listItems.length) {
+        listItems[index + 1].focus();
+      } else {
+        listItems[0].focus();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (index > 0) {
+        listItems[index - 1].focus();
+      } else {
+        studentNameInput.focus();
+      }
+    } else if (e.key === 'Escape') {
+      studentNameList.classList.add('d-none');
+      studentNameInput.focus();
+    }
+  });
+  filterNameInput.addEventListener('input', renderTable);
+  filterClassInput.addEventListener('input', renderTable);
+  filterDateInput.addEventListener('change', renderTable);
+  clearFiltersBtn.addEventListener('click', () => {
+    filterNameInput.value = '';
+    filterClassInput.value = '';
+    filterDateInput.value = '';
+    renderTable();
+  });
+  tardinessForm.addEventListener('submit', handleTardinessFormSubmit);
+  pasteBulkForm.addEventListener('submit', handlePasteBulkFormSubmit);
+  singleModeBtn.addEventListener('click', () => switchMode('single'));
+  pasteModeBtn.addEventListener('click', () => switchMode('pasteBulk'));
+  function showApp() {
+    loginSection.classList.add('d-none');
+    appSection.classList.remove('d-none');
+  }
+  function init() {
+    const loggedInUser = getLoggedInUser();
+    if (loggedInUser) {
+      showApp();
+    } else {
+      loginSection.classList.remove('d-none');
+      appSection.classList.add('d-none');
+    }
+    loadTardinessData();
+    setDefaultDates();
+    renderTable();
+    renderDashboard();
+    switchMode('single');
+  }
+  window.addEventListener('click', (e) => {
+    if (!studentNameInput.contains(e.target) && !studentNameList.contains(e.target)) {
+      studentNameList.classList.add('d-none');
+    }
+  });
+  init();
+})();
+</script>
+</body>
+</html>
