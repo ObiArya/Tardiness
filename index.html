@@ -4,7 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Student Tardiness Tracker</title>
-<!-- Bootstrap CSS CDN -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 <style>
   body {
@@ -83,9 +82,8 @@
     </div>
   </div>
 
-  <!-- Dashboard -->
   <div class="row mb-4">
-    <div class="col-md-12 mb-3">
+    <div class="col-md-6 mb-3">
       <div class="p-3 bg-white rounded shadow-sm">
         <h5>Top Students with More than 3 Tardiness</h5>
         <div id="topLateStudents" class="dashboard-list">
@@ -93,15 +91,24 @@
         </div>
       </div>
     </div>
+    <div class="col-md-6 mb-3">
+        <div class="p-3 bg-white rounded shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5>Punished Students</h5>
+                <input type="text" id="filterPunishedName" class="form-control form-control-sm w-50" placeholder="Search name..." />
+            </div>
+            <div id="punishedStudentsList" class="dashboard-list">
+                <p class="text-muted mb-0">No students have been punished.</p>
+            </div>
+        </div>
+    </div>
   </div>
 
-  <!-- Mode Toggle -->
   <div class="mb-3 d-flex justify-content-end gap-2 flex-wrap">
     <button id="singleModeBtn" class="btn btn-primary">Single Entry Mode</button>
     <button id="pasteModeBtn" class="btn btn-outline-secondary">Paste Bulk Entry Mode</button>
   </div>
 
-  <!-- Single Entry Form -->
   <form id="tardinessForm" class="mb-4 needs-validation" novalidate autocomplete="off">
     <div class="row g-3">
       <div class="col-md-4 position-relative">
@@ -134,7 +141,6 @@
     </div>
   </form>
 
-  <!-- Paste Bulk Entry Form -->
   <form id="pasteBulkForm" class="mb-4 d-none needs-validation" novalidate autocomplete="off">
     <div class="mb-3">
       <label for="pasteBulkTextarea" class="form-label">Paste bulk tardiness data below (each line: <code>Student Name, Class, Confirm Status</code>)</label>
@@ -154,7 +160,6 @@ Adamu, 10A, Confirm
     <button type="submit" class="btn btn-success w-100">Add All Records</button>
   </form>
 
-  <!-- Filters -->
   <div class="row mb-3">
     <div class="col-md-4 mb-2">
       <input type="text" id="filterName" class="form-control" placeholder="Filter by student name" />
@@ -170,7 +175,6 @@ Adamu, 10A, Confirm
     </div>
   </div>
 
-  <!-- Tardiness Table -->
   <div class="table-responsive shadow-sm rounded bg-white">
     <table class="table table-striped table-hover mb-0" id="tardinessTable">
       <thead class="table-primary">
@@ -184,13 +188,11 @@ Adamu, 10A, Confirm
         </tr>
       </thead>
       <tbody>
-        <!-- Filled dynamically -->
-      </tbody>
+        </tbody>
     </table>
   </div>
 </div>
 
-<!-- Bootstrap Bundle JS including Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
@@ -223,8 +225,11 @@ Adamu, 10A, Confirm
 
   const tardinessTableBody = document.querySelector('#tardinessTable tbody');
   const topLateStudentsElem = document.getElementById('topLateStudents');
+  const punishedStudentsListElem = document.getElementById('punishedStudentsList');
+  const filterPunishedNameInput = document.getElementById('filterPunishedName'); // New filter input
 
   let tardinessData = [];
+  let punishedStudents = []; // New array to store punished students
   let studentNames = new Set();
 
   const validUsers = [
@@ -248,14 +253,20 @@ Adamu, 10A, Confirm
     const dataRaw = localStorage.getItem('tardinessData');
     if (dataRaw) {
       tardinessData = JSON.parse(dataRaw);
-      studentNames = new Set(tardinessData.map(d => d.studentName));
     } else {
       tardinessData = [];
-      studentNames = new Set();
     }
+    const punishedRaw = localStorage.getItem('punishedStudents');
+    if (punishedRaw) {
+        punishedStudents = JSON.parse(punishedRaw);
+    } else {
+        punishedStudents = [];
+    }
+    studentNames = new Set(tardinessData.map(d => d.studentName));
   }
   function saveTardinessData() {
     localStorage.setItem('tardinessData', JSON.stringify(tardinessData));
+    localStorage.setItem('punishedStudents', JSON.stringify(punishedStudents));
   }
   function populateStudentNameList(filter) {
     if (!filter) {
@@ -290,8 +301,34 @@ Adamu, 10A, Confirm
     if (isNaN(d)) return dateStr;
     return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   }
-function renderTable() {
-    const data = getFilteredData(); // Ambil semua data tanpa filter konfirmasi
+
+  function punishStudent(studentName) {
+      if (confirm(`Are you sure you want to punish ${studentName}? All their tardiness records will be cleared.`)) {
+          // Add student to punished list
+          punishedStudents.push({ name: studentName, date: new Date().toISOString().slice(0, 10) });
+
+          // Clear all tardiness records for this student
+          tardinessData = tardinessData.filter(rec => rec.studentName !== studentName);
+          studentNames = new Set(tardinessData.map(d => d.studentName));
+
+          // Save and re-render
+          saveTardinessData();
+          renderTable();
+          renderDashboard();
+          alert(`${studentName} has been punished and their tardiness records have been reset.`);
+      }
+  }
+  
+  function unpunishStudent(studentName) {
+    if (confirm(`Are you sure you want to remove ${studentName} from the punished list?`)) {
+        punishedStudents = punishedStudents.filter(s => s.name !== studentName);
+        saveTardinessData();
+        renderDashboard(); // Re-render dashboard to update the punished list
+    }
+  }
+
+  function renderTable() {
+    const data = getFilteredData();
     if (data.length === 0) {
         tardinessTableBody.innerHTML = `<tr><td colspan="6" class="text-center fst-italic text-muted">No records found.</td></tr>`;
         return;
@@ -303,7 +340,7 @@ function renderTable() {
     });
     
     tardinessTableBody.innerHTML = data.map((rec, i) => {
-        const originalIndex = tardinessData.findIndex(d => d.studentName === rec.studentName && d.date === rec.date);
+        const originalIndex = tardinessData.findIndex(d => d.studentName === rec.studentName && d.date === rec.date && d.className === rec.className);
         return `
         <tr data-index="${originalIndex}">
             <th scope="row">${i + 1}</th>
@@ -333,36 +370,71 @@ function renderTable() {
             }
         });
     });
-}
+  }
 
-function renderDashboard() {
+  function renderDashboard() {
+    // Render Top Late Students
     if (tardinessData.length === 0) {
         topLateStudentsElem.innerHTML = '<p class="text-muted mb-0">No data available.</p>';
-        return;
-    }
-    
-    const countMap = {};
-    for (const rec of tardinessData) {
-        // Hitung hanya yang tidak dikonfirmasi
-        if (!rec.confirmed) {
-            countMap[rec.studentName] = (countMap[rec.studentName] || 0) + 1;
+    } else {
+        const countMap = {};
+        for (const rec of tardinessData) {
+            if (!rec.confirmed) {
+                countMap[rec.studentName] = (countMap[rec.studentName] || 0) + 1;
+            }
         }
+        
+        const filteredStudents = Object.entries(countMap).filter(([name, count]) => count >= 3);
+        const sortedStudents = filteredStudents.sort((a, b) => b[1] - a[1]);
+        
+        const topList = sortedStudents.map(([name, count]) => {
+            return `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                <span class="text-danger-bold">${name} <span class="badge bg-primary rounded-pill">${count}</span></span>
+                <button class="btn btn-sm btn-warning punish-btn" data-student-name="${name}" title="Punish and reset tardiness">Punish</button>
+            </div>`;
+        }).join('');
+        
+        topLateStudentsElem.innerHTML = topList.length > 0 ? topList : '<p class="text-muted mb-0">No students with 3 or more unconfirmed tardiness.</p>';
+
+        // Attach event listeners to new punish buttons
+        topLateStudentsElem.querySelectorAll('.punish-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const studentName = e.target.getAttribute('data-student-name');
+                if (studentName) {
+                    punishStudent(studentName);
+                }
+            });
+        });
     }
-    
-    // Filter students with tardiness greater than 3
-    const filteredStudents = Object.entries(countMap).filter(([name, count]) => count >= 3);
-    
-    // Sort the filtered students by count
-    const sortedStudents = filteredStudents.sort((a, b) => b[1] - a[1]);
-    
-    const topList = sortedStudents.map(([name, count]) => {
-        return `<div class="d-flex justify-content-between border-bottom py-1">
-            <span class="text-danger-bold">${name}</span> <span class="badge bg-primary rounded-pill">${count}</span>
-        </div>`;
-    }).join('');
-    
-    topLateStudentsElem.innerHTML = topList.length > 0 ? topList : '<p class="text-muted mb-0">No students with more than 3 tardiness.</p>';
-}
+
+    // Render Punished Students List
+    const filterText = filterPunishedNameInput.value.toLowerCase();
+    const filteredPunished = punishedStudents.filter(student => student.name.toLowerCase().includes(filterText));
+
+    if (filteredPunished.length === 0) {
+        punishedStudentsListElem.innerHTML = '<p class="text-muted mb-0">No students found.</p>';
+    } else {
+        const punishedList = filteredPunished.map(student => {
+            return `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                <span>${student.name} <small class="text-muted fst-italic">(Punished on: ${formatDate(student.date)})</small></span>
+                <button class="btn btn-sm btn-outline-danger unpunish-btn" data-student-name="${student.name}" title="Remove from this list">Reset</button>
+            </div>`;
+        }).join('');
+        punishedStudentsListElem.innerHTML = punishedList;
+
+        // Attach event listeners to unpunish buttons
+        punishedStudentsListElem.querySelectorAll('.unpunish-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const studentName = e.target.getAttribute('data-student-name');
+                if (studentName) {
+                    unpunishStudent(studentName);
+                }
+            });
+        });
+    }
+  }
 
   function setDefaultDates() {
     const todayStr = (new Date()).toISOString().slice(0, 10);
@@ -390,7 +462,7 @@ function renderDashboard() {
     studentNameList.classList.add('d-none');
     tardinessForm.classList.remove('was-validated');
     renderTable();
-    renderDashboard();
+    renderDashboard(); 
   }
   function handlePasteBulkFormSubmit(e) {
     e.preventDefault();
@@ -456,6 +528,7 @@ function renderDashboard() {
   function clearAllData() {
     if (confirm('Are you sure you want to clear ALL tardiness data? This action cannot be undone.')) {
       tardinessData = [];
+      punishedStudents = [];
       studentNames = new Set();
       saveTardinessData();
       filterNameInput.value = '';
@@ -561,6 +634,10 @@ function renderDashboard() {
   pasteBulkForm.addEventListener('submit', handlePasteBulkFormSubmit);
   singleModeBtn.addEventListener('click', () => switchMode('single'));
   pasteModeBtn.addEventListener('click', () => switchMode('pasteBulk'));
+  
+  // New event listener for the punished students filter
+  filterPunishedNameInput.addEventListener('input', renderDashboard);
+
   function showApp() {
     loginSection.classList.add('d-none');
     appSection.classList.remove('d-none');
